@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/promcp/pkg/mcp"
+	"github.com/tay3223/mcp-server-prometheus/pkg/mcp"
 )
 
 // generateAPIKey 生成一个随机的API Key
@@ -23,6 +23,7 @@ func main() {
 	// 解析命令行参数
 	prometheusAddr := flag.String("prometheus", "http://localhost:9090", "Prometheus服务器地址")
 	apiKey := flag.String("api-key", "", "API Key用于认证(如果不提供将自动生成)")
+	listenAddr := flag.String("listen", "0.0.0.0:8080", "HTTP服务器监听地址")
 	flag.Parse()
 
 	// 从环境变量中获取Prometheus地址(如果有)
@@ -35,6 +36,11 @@ func main() {
 		*apiKey = envKey
 	}
 
+	// 从环境变量中获取监听地址(如果有)
+	if envListen := os.Getenv("MCP_LISTEN_ADDR"); envListen != "" {
+		*listenAddr = envListen
+	}
+
 	// 如果没有提供API Key，则生成一个
 	if *apiKey == "" {
 		*apiKey = generateAPIKey()
@@ -44,7 +50,7 @@ func main() {
 	fmt.Printf("连接到Prometheus服务器: %s\n", *prometheusAddr)
 
 	// 创建MCP服务器
-	server, err := mcp.NewPrometheusServer(*prometheusAddr, *apiKey)
+	server, err := mcp.NewPrometheusServer(*prometheusAddr, *apiKey, *listenAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "创建服务器失败: %v\n", err)
 		os.Exit(1)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -15,14 +16,15 @@ import (
 
 // PrometheusServer 封装了Prometheus MCP服务器
 type PrometheusServer struct {
-	server  *server.MCPServer
-	client  *prometheus.Client
-	address string
-	apiKey  string
+	server   *server.MCPServer
+	client   *prometheus.Client
+	address  string
+	apiKey   string
+	httpAddr string
 }
 
 // NewPrometheusServer 创建一个新的Prometheus MCP服务器
-func NewPrometheusServer(address string, apiKey string) (*PrometheusServer, error) {
+func NewPrometheusServer(address string, apiKey string, httpAddr string) (*PrometheusServer, error) {
 	client, err := prometheus.NewClient(address)
 	if err != nil {
 		return nil, err
@@ -34,10 +36,11 @@ func NewPrometheusServer(address string, apiKey string) (*PrometheusServer, erro
 	)
 
 	ps := &PrometheusServer{
-		server:  s,
-		client:  client,
-		address: address,
-		apiKey:  apiKey,
+		server:   s,
+		client:   client,
+		address:  address,
+		apiKey:   apiKey,
+		httpAddr: httpAddr,
 	}
 
 	// 注册工具
@@ -358,6 +361,30 @@ func (ps *PrometheusServer) handleRules(ctx context.Context, request mcp.CallToo
 
 // StartServer 启动MCP服务器
 func (ps *PrometheusServer) StartServer() error {
+	// 如果指定了HTTP地址，则启动HTTP服务器
+	if ps.httpAddr != "" {
+		fmt.Printf("启动HTTP服务器在: %s\n", ps.httpAddr)
+		mux := http.NewServeMux()
+
+		// 添加健康检查端点
+		mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status":"ok"}`))
+		})
+
+		// 添加状态端点
+		mux.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"server":"Prometheus MCP Server","version":"1.0.0","status":"running"}`))
+		})
+
+		// 启动HTTP服务器
+		return http.ListenAndServe(ps.httpAddr, mux)
+	}
+
+	// 否则使用标准IO模式
 	return server.ServeStdio(ps.server)
 }
 
