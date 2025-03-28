@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "prometheus": {
-      "command": "/path/to/promcp-server",
-      "env": {
-        "PROMETHEUS_HOST": "http://your-prometheus-instance:9090"
+      "url": "https://your-mcp-server-host:8080",
+      "defaultArguments": {
+        "X-API-Key": "your-api-key-here"
       }
     }
   }
