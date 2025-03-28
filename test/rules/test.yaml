@@ -1,0 +1,13 @@
+groups:
+  - name: "测试告警规则组"
+    interval: 15
+    rules:
+      - alert: "测试告警"
+        expr: "vector(1)"
+        for: "1m"
+        labels:
+          severity: "info"
+          type: "test"
+        annotations:
+          summary: "这是一个测试告警"
+          description: "这是一个用于测试MCP server功能的告警规则"

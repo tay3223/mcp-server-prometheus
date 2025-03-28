@@ -1,0 +1,510 @@
+groups:
+  - name: KubestateExporter
+    interval: 15
+    rules:
+      - alert: KubernetesNodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 10m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Node {{ $labels.node }} 已经准备了很长时间
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes节点未就绪 (node {{ $labels.node }})
+
+      - alert: KubernetesNodeMemoryPressure
+        expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Node {{ $labels.node }} 存在内存资源短缺
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes 内存压力 (node {{ $labels.node }})
+
+      - alert: KubernetesNodeDiskPressure
+        expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Node {{ $labels.node }} 存在磁盘资源短缺
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes 磁盘压力 (node {{ $labels.node }})
+
+      - alert: KubernetesNodeNetworkUnavailable
+        expr: kube_node_status_condition{condition="NetworkUnavailable",status="true"} == 1
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Node {{ $labels.node }} 存在网络不可用问题
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes 节点网络不可用 (instance {{ $labels.instance }})
+
+      - alert: KubernetesNodeOutOfPodCapacity
+        expr: |
+          sum by (node) ((kube_pod_status_phase{phase="Running"} == 1) + on (uid) group_left (node) (0 * kube_pod_info{pod_template_hash=""})) / sum by (node) (kube_node_status_allocatable{resource="pods"}) * 100 > 90
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            Node {{ $labels.node }} pod容量不足 
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes 节点的pod容量不足 (instance {{ $labels.instance }})
+
+      - alert: KubernetesContainerOomKiller
+        expr: |
+          (kube_pod_container_status_restarts_total - kube_pod_container_status_restarts_total offset 10m >= 1) and ignoring (reason) min_over_time(kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}[10m]) == 1
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            在过去十分钟容器 {{ $labels.container }} 在 {{ $labels.namespace }}/{{ $labels.pod }} 因oom而被killer {{ $value }} 次
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes 容器因 oom 被杀掉 ({{ $labels.namespace }}/{{ $labels.pod }}:{{ $labels.container }})
+
+      - alert: KubernetesJobFailed
+        expr: kube_job_status_failed > 0
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            Job {{ $labels.namespace }}/{{ $labels.job_name }} 未执行成功
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes 作业失败 ({{ $labels.namespace }}/{{ $labels.job_name }})
+
+      - alert: KubernetesCronjobSuspended
+        expr: kube_cronjob_spec_suspend != 0
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} 已暂停
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes CronJob 已暂停 ({{ $labels.namespace }}/{{ $labels.cronjob }})
+
+      - alert: KubernetesPersistentvolumeclaimPending
+        expr: kube_persistentvolumeclaim_status_phase{phase="Pending"} == 1
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            PersistentVolumeClaim {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} 为挂起状态
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes PersistentVolumeClaim 挂起 ({{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }})
+
+      - alert: KubernetesVolumeOutOfDiskSpace
+        expr: kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes * 100 < 10
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            Volume 几乎已满 (剩余小于 10% )
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes Volume 磁盘空间不足 (instance {{ $labels.instance }})
+
+      - alert: KubernetesVolumeFullInFourDays
+        expr: predict_linear(kubelet_volume_stats_available_bytes[6h:5m], 4 * 24 * 3600) < 0
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Volume  {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} 预计将在四天内填满. 目前 {{ $value | humanize }}% 是可用的
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes Volume 4天就满了 (instance {{ $labels.instance }})
+
+      - alert: KubernetesPersistentvolumeError
+        expr: kube_persistentvolume_status_phase{job="kube-state-metrics",phase=~"Failed|Pending"} > 0
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Persistent volume {{ $labels.persistentvolume }} 状态异常
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes PersistentVolumeClaim 等待 ({{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }})
+
+      - alert: KubernetesStatefulsetDown
+        expr: kube_statefulset_replicas != kube_statefulset_status_replicas_ready > 0
+        for: 1m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} went down
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes StatefulSet down ({{ $labels.namespace }}/{{ $labels.statefulset }})
+
+      - alert: KubernetesHpaScaleInability
+        expr: |
+          (kube_horizontalpodautoscaler_spec_max_replicas - kube_horizontalpodautoscaler_status_desired_replicas) * on (horizontalpodautoscaler, namespace) (kube_horizontalpodautoscaler_status_condition{condition="ScalingLimited",status="true"} == 1) == 0
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} 无法缩放
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes HPA 无法缩放 (instance {{ $labels.instance }})
+
+      - alert: KubernetesHpaMetricsUnavailability
+        expr: kube_horizontalpodautoscaler_status_condition{condition="ScalingActive",status="false"} == 1
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} 无法收集指标
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes HPA 监控不可用 (instance {{ $labels.instance }})
+
+      - alert: KubernetesHpaScaleMaximum
+        expr: |
+          (kube_horizontalpodautoscaler_status_desired_replicas >= kube_horizontalpodautoscaler_spec_max_replicas) and (kube_horizontalpodautoscaler_spec_max_replicas > 1) and (kube_horizontalpodautoscaler_spec_min_replicas != kube_horizontalpodautoscaler_spec_max_replicas)
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: info
+          type: "null"
+        annotations:
+          description: |
+            HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} 已达到设置的最大数量
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes HPA 数量已达到最大 (instance {{ $labels.instance }})
+
+      - alert: KubernetesHpaUnderutilized
+        expr: |
+          max by (horizontalpodautoscaler) (quantile_over_time(0.5, kube_horizontalpodautoscaler_status_desired_replicas[1d]) == kube_horizontalpodautoscaler_spec_min_replicas) > 3
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: info
+          type: "null"
+        annotations:
+          description: |
+            HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} 在50%的时间内始终处于最低复制副本。这里可能节省成本。
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes HPA 未充分利用 (instance {{ $labels.instance }})
+
+      - alert: KubernetesPodCrashLooping
+        expr: increase(kube_pod_container_status_restarts_total[1m]) > 3
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            Pod {{ $labels.namespace }}/{{ $labels.pod }} 正在崩溃循环
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes pod 循环崩溃 ({{ $labels.namespace }}/{{ $labels.pod }})
+
+      - alert: KubernetesReplicasetReplicasMismatch
+        expr: kube_replicaset_spec_replicas != kube_replicaset_status_ready_replicas
+        for: 10m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            ReplicaSet {{ $labels.namespace }}/{{ $labels.replicaset }} 副本不匹配
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes ReplicasSet 不匹配 ({{ $labels.namespace }}/{{ $labels.replicaset }})
+
+      - alert: KubernetesDeploymentReplicasMismatch
+        expr: kube_deployment_spec_replicas != kube_deployment_status_replicas_available
+        for: 10m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            Deployment {{ $labels.namespace }}/{{ $labels.deployment }} 副本不匹配
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes Deployment 部署副本不匹配 ({{ $labels.namespace }}/{{ $labels.deployment }})
+
+      - alert: KubernetesStatefulsetReplicasMismatch
+        expr: kube_statefulset_status_replicas_ready != kube_statefulset_status_replicas
+        for: 10m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            StatefulSet 与预期的副本数不匹配.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes StatefulSet 副本不匹配 (instance {{ $labels.instance }})
+
+      - alert: KubernetesDeploymentGenerationMismatch
+        expr: kube_deployment_status_observed_generation != kube_deployment_metadata_generation
+        for: 10m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Deployment {{ $labels.namespace }}/{{ $labels.deployment }} 已失败，但未回滚.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes Deployment generation 不匹配 ({{ $labels.namespace }}/{{ $labels.deployment }})
+
+      - alert: KubernetesStatefulsetGenerationMismatch
+        expr: kube_statefulset_status_observed_generation != kube_statefulset_metadata_generation
+        for: 10m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} 已失败，但未回滚.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes StatefulSet generation 不匹配 ({{ $labels.namespace }}/{{ $labels.statefulset }})
+
+      - alert: KubernetesStatefulsetUpdateNotRolledOut
+        expr: |
+          max without (revision) (kube_statefulset_status_current_revision unless kube_statefulset_status_update_revision) * (kube_statefulset_replicas != kube_statefulset_status_replicas_updated)
+        for: 10m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} 更新尚未推出.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes StatefulSet 未推出的更新 ({{ $labels.namespace }}/{{ $labels.statefulset }})
+
+      - alert: KubernetesDaemonsetRolloutStuck
+        expr: |
+          kube_daemonset_status_number_ready / kube_daemonset_status_desired_number_scheduled * 100 < 100 or kube_daemonset_status_desired_number_scheduled - kube_daemonset_status_current_number_scheduled > 0
+        for: 10m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            Some Pods of DaemonSet {{ $labels.namespace }}/{{ $labels.daemonset }} 未被调度或未准备好
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes DaemonSet 推出被卡住 ({{ $labels.namespace }}/{{ $labels.daemonset }})
+
+      - alert: KubernetesDaemonsetMisscheduled
+        expr: kube_daemonset_status_number_misscheduled > 0
+        for: 1m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Some Pods of DaemonSet {{ $labels.namespace }}/{{ $labels.daemonset }} 运行在它们不应该运行的地方
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes DaemonSet 调度错误 ({{ $labels.namespace }}/{{ $labels.daemonset }})
+
+      - alert: KubernetesCronjobTooLong
+        expr: time() - kube_cronjob_next_schedule_time > 3600
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} 需要超过1小时才能完成.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes CronJob 太久了 ({{ $labels.namespace }}/{{ $labels.cronjob }})
+
+      - alert: KubernetesJobSlowCompletion
+        expr: kube_job_spec_completions - kube_job_status_succeeded - kube_job_status_failed > 0
+        for: 12h
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Kubernetes Job {{ $labels.namespace }}/{{ $labels.job_name }} 没有及时完成.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes job 完成缓慢 ({{ $labels.namespace }}/{{ $labels.job_name }})
+
+      - alert: KubernetesApiServerErrors
+        expr: |
+          sum by (instance, job) (rate(apiserver_request_total{code=~"(?:5..)",job="apiserver"}[1m])) / sum by (instance, job) (rate(apiserver_request_total{job="apiserver"}[1m])) * 100 > 3
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Kubernetes API 服务错误率过高 rate
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes API 服务错误 (instance {{ $labels.instance }})
+
+      - alert: KubernetesApiClientErrors
+        expr: |
+          (sum by (instance, job) (rate(rest_client_requests_total{code=~"(4|5).."}[1m])) / sum by (instance, job) (rate(rest_client_requests_total[1m]))) * 100 > 1
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            Kubernetes API 客户端出现高错误率
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes API 客户端错误 (instance {{ $labels.instance }})
+
+      - alert: KubernetesClientCertificateExpiresNextWeek
+        expr: |
+          apiserver_client_certificate_expiration_seconds_count{job="apiserver"} > 0 and histogram_quantile(0.01, sum by (job, le) (rate(apiserver_client_certificate_expiration_seconds_bucket{job="apiserver"}[5m]))) < 7 * 24 * 60 * 60
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            用于向apiserver进行身份验证的客户端证书将于下周到期.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes 客户端证书将于下周到期 (instance {{ $labels.instance }})
+
+      - alert: KubernetesClientCertificateExpiresSoon
+        expr: |
+          apiserver_client_certificate_expiration_seconds_count{job="apiserver"} > 0 and histogram_quantile(0.01, sum by (job, le) (rate(apiserver_client_certificate_expiration_seconds_bucket{job="apiserver"}[5m]))) < 24 * 60 * 60 * 30
+        for: 0m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: |
+            用于向apiserver进行身份验证的客户端证书将在30天内过期.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes 客户端证书即将过期 (instance {{ $labels.instance }})
+
+      - alert: KubernetesApiServerLatency
+        expr: |
+          histogram_quantile(0.99, sum without (subresource) (rate(apiserver_request_duration_seconds_bucket{verb!~"(?:CONNECT|WATCHLIST|WATCH|PROXY)"}[10m]))) > 1
+        for: 2m
+        labels:
+          quality: "5"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            Kubernetes API 服务对 {{ $labels.verb }} {{ $labels.resource }} 的延迟为 {{ $value }}  秒.
+            VALUE = {{ $value }}
+            LABELS = {{ $labels }}
+          summary: Kubernetes API 服务器延迟 (instance {{ $labels.instance }})

@@ -1,0 +1,41 @@
+groups:
+  - name: 线下物理机磁盘告警
+    interval: 15
+    rules:
+      - alert: 物理机磁盘使用率大于90%
+        expr: |
+          ((node_filesystem_size_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="physical",mountpoint!~".*pod.*"} - node_filesystem_free_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="physical",mountpoint!~".*pod.*"}) * 100 / (node_filesystem_avail_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="physical",mountpoint!~".*pod.*"} + (node_filesystem_size_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="physical",mountpoint!~".*pod.*"} - node_filesystem_free_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="physical",mountpoint!~".*pod.*"}))) >= 90
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: 物理机 {{ $labels.instance }}（{{ $labels.mountpoint }}）的磁盘使用率超过阈值，当前告警值为{{ printf "%.2f" $value }}。
+          summary: 磁盘使用率在 {{ $labels.instance }} （{{ $labels.mountpoint }}） 上非常高
+
+      - alert: 虚拟机磁盘使用率大于90%
+        expr: |
+          ((node_filesystem_size_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="virtual",mountpoint!~".*pod.*"} - node_filesystem_free_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="virtual",mountpoint!~".*pod.*"}) * 100 / (node_filesystem_avail_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="virtual",mountpoint!~".*pod.*"} + (node_filesystem_size_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="virtual",mountpoint!~".*pod.*"} - node_filesystem_free_bytes{env="offline",fstype=~"ext.*|xfs",machine_type="virtual",mountpoint!~".*pod.*"}))) >= 90
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: 虚拟机 {{ $labels.instance }}（{{ $labels.mountpoint }}）的磁盘使用率超过阈值，当前告警值为{{ printf "%.2f" $value }}。
+          summary: 磁盘使用率在 {{ $labels.instance }} （{{ $labels.mountpoint }}） 上非常高
+
+      - alert: 主机inode可用量较低
+        expr: node_filesystem_files_free{device!~"rootfs"} / node_filesystem_files < 0.6
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: 机器 {{ $labels.instance }} {{ $labels.mountpoint }}） 的inode可用量低于阈值，当前告警值为{{ printf "%.2f" $value }}。
+          summary: inode可用量在机器 {{ $labels.instance }} （{{ $labels.mountpoint }}）上低于正常值

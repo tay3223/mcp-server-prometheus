@@ -1,0 +1,15 @@
+groups:
+  - name: PrometheusCommunity
+    interval: 15
+    rules:
+      - alert: 节点离线
+        expr: avg_over_time(minio_cluster_nodes_offline_total{job=~"offline-.*"}[5m]) > 0
+        for: 10m
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          severity: warn
+          type: "null"
+        annotations:
+          description: 集群中 {{ $labels.instance }} 节点处于离线状态已有5分钟
+          summary: MinIO集群有节点处于离线状态

@@ -1,0 +1,63 @@
+groups:
+  - name: 监控采集器状态监控
+    interval: 15
+    rules:
+      - alert: 监控探测内容出现异常
+        expr: probe_success == 0
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          service: "Middleware"
+          service_type: "redis"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            环境 {{ $labels.env }}
+             应用类型 {{ $labels.service }}
+             应用 {{ $labels.service_type }}
+             实例 {{ $labels.instance }} 状态异常，探测失败。
+             采集源 {{ $labels.blackbox_exporter }}
+             Job {{ $labels.job }}
+          summary: 描述信息 {{ $labels.object_summary }}
+
+      - alert: 监控采集器异常
+        expr: up{cluster!~"k2|k6"} == 0
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          service: "Middleware"
+          service_type: "redis"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            环境 {{ $labels.env }}
+              应用类型 {{ $labels.service }}
+             应用 {{ $labels.service_type }}
+             实例 {{ $labels.instance }} 状态异常，探测失败。
+             采集源 {{ $labels.blackbox_exporter }}
+             Job {{ $labels.job }}
+          summary: 描述信息 {{ $labels.object_summary }}
+
+      - alert: 接口状态码异常
+        expr: probe_http_status_code != 200
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          service: "Middleware"
+          service_type: "redis"
+          severity: warning
+          type: "null"
+        annotations:
+          description: |
+            环境 {{ $labels.env }}
+              应用类型 {{ $labels.service }}
+             应用 {{ $labels.service_type }}
+             实例 {{ $labels.instance }} 状态异常，探测失败。
+             采集源 {{ $labels.blackbox_exporter }}
+             Job {{ $labels.job }}
+          summary: 描述信息 {{ $labels.object_summary }}

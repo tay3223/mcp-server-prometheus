@@ -1,0 +1,42 @@
+groups:
+  - name: 存活探测
+    interval: 15
+    rules:
+      - alert: 线下主机宕机
+        expr: up{cluster!~"k2|k4",env="offline",job=~"offline_physical_machine|offline_virtual_machine|offline_pve_physical_machine|offline_pve_exporter"} == 0
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: 服务器存活探测失败，请尽快处理！！！
+          summary: 线下主机宕机
+
+  - name: 证书过期时间P4
+    interval: 15
+    rules:
+      - alert: 证书将在20天内过期
+        expr: (probe_ssl_earliest_cert_expiry{job="offline-blackbox-probe-ssl"} - time()) / 86400 < 20
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: '{{ $labels.instance }} 证书还有{{ printf "%.1f" $value }}天过期'
+          summary: 证书将在20天内过期
+
+      - alert: 证书将在3天内过期
+        expr: (probe_ssl_earliest_cert_expiry{job="offline-blackbox-probe-ssl"} - time()) / 86400 < 3
+        for: 60s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          severity: critical
+          type: "null"
+        annotations:
+          description: '{{ $labels.instance }} 证书还有{{ printf "%.1f" $value }}天过期'
+          summary: 证书将在3天内过期

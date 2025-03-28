@@ -1,0 +1,15 @@
+groups:
+  - name: 服务器敏感文件被修改
+    interval: 15
+    rules:
+      - alert: 服务器敏感文件被修改
+        expr: changes(file_change_timestamp_seconds[5m]) > 0
+        for: 10s
+        labels:
+          quality: "4"
+          ruleCreateUser: "洋杨"
+          severity: warning
+          type: "null"
+        annotations:
+          description: "{{ $labels.instance | stripPort }} 服务器上的 {{ $labels.path }} 文件被篡改！！！"
+          summary: 服务器敏感文件被修改

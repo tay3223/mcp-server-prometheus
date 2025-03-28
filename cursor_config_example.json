@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "prometheus": {
+      "command": "/path/to/promcp-server",
+      "env": {
+        "PROMETHEUS_HOST": "http://your-prometheus-instance:9090"
+      }
+    }
+  }
+} 
